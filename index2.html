@@ -1,143 +1,150 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Restaurant Locator</title>
+  <title>Restaurant Finder</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
+    html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
+      background-color: #f2f2f2;
+      font-family: Arial, sans-serif;
     }
 
-    #map {
-      height: 400px;
-      width: 100%;
+    #map-container {
+      width: 80%;
+      height: 60%;
+      margin: 20px auto;
     }
 
-    .restaurant {
-      margin-bottom: 20px;
-      border: 1px solid #ccc;
+    #heading {
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #555555;
+      margin-top: 30px;
+    }
+
+    #search-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    #search-bar {
       padding: 10px;
-      overflow: hidden;
+      width: 400px;
+      font-size: 16px;
     }
 
-    .restaurant img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      margin-bottom: 10px;
-    }
-
-    .search-bar {
-      margin-bottom: 10px;
+    #location-button {
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 16px;
     }
   </style>
-</head>
-<body>
-  <h1>Restaurant Locator</h1>
-  <div class="search-bar">
-    <label for="search">Search for restaurants:</label>
-    <input type="text" id="search" placeholder="Enter a location or restaurant name">
-    <button onclick="searchRestaurants()">Search</button>
-  </div>
-  <div id="map"></div>
-  <div id="restaurants"></div>
-
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxgFm8A0qnrxYKkvbQHCfF9WWBBS_SyjI&libraries=places"></script>
   <script>
-    var map;
-
-    // Function to initialize and display the map
     function initMap() {
-      // Define the coordinates for your area or default location
-      var defaultLocation = { lat: 40.7128, lng: -74.0060 };
-
-      // Create a map centered at the default location
-      map = new google.maps.Map(document.getElementById('map'), {
-        zoom: 12,
-        center: defaultLocation
+      var map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 40.714224, lng: -74.005973 },
+        zoom: 15,
+        disableDefaultUI: true
       });
 
-      // Call the function to fetch restaurants and display markers at the default location
-      fetchRestaurants(defaultLocation);
-    }
+      var infoWindow = new google.maps.InfoWindow();
 
-    // Function to fetch restaurants based on location and display markers
-    function fetchRestaurants(location) {
-      // Clear existing markers
-      clearMarkers();
-
-      // Make an API call to fetch restaurant data based on location
-      // Replace 'YOUR_API_ENDPOINT' with the actual API endpoint
-      fetch('YOUR_API_ENDPOINT?lat=' + location.lat + '&lng=' + location.lng)
-        .then(response => response.json())
-        .then(data => {
-          // Loop through the restaurants and create markers and info windows
-          data.forEach(restaurant => {
-            var marker = new google.maps.Marker({
-              position: { lat: restaurant.lat, lng: restaurant.lng },
-              map: map,
-              title: restaurant.name
-            });
-
-            // Add a click event listener to the marker to show the restaurant details
-            marker.addListener('click', function() {
-              alert(restaurant.name + '\n' + restaurant.address);
-            });
-          });
-        })
-        .catch(error => {
-          console.log('Error:', error);
+      // Function to create a marker for a restaurant
+      function createMarker(place) {
+        var marker = new google.maps.Marker({
+          map: map,
+          position: place.geometry.location
         });
-    }
 
-    // Function to search for restaurants based on user input
-    function searchRestaurants() {
-      var searchInput = document.getElementById('search').value;
-      if (searchInput.trim() === '') {
-        // If search input is empty, fetch restaurants at the default location
-        fetchRestaurants(map.getCenter());
-      } else {
-        // Otherwise, geocode the search input to get the location coordinates
-        var geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address: searchInput }, function(results, status) {
-          if (status === 'OK' && results.length > 0) {
-            var location = results[0].geometry.location;
-            map.setCenter(location);
-            fetchRestaurants(location);
-          } else {
-            alert('No results found.');
-          }
+        google.maps.event.addListener(marker, 'click', function() {
+          infoWindow.setContent(place.name);
+          infoWindow.open(map, this);
         });
       }
-    }
 
-    // Function to find the user's current location
-    function findCurrentLocation() {
+      // Check if the browser supports Geolocation
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(function(position) {
-          var location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          map.setCenter(location);
-          fetchRestaurants(location);
-        }, function() {
-          alert('Unable to retrieve your location.');
+          var latitude = position.coords.latitude;
+          var longitude = position.coords.longitude;
+          var pos = new google.maps.LatLng(latitude, longitude);
+
+          var marker = new google.maps.Marker({
+            position: pos,
+            map: map
+          });
+
+          map.setCenter(pos);
+        }, function(error) {
+          console.log('Error getting current position:', error);
         });
       } else {
-        alert('Geolocation is not supported by your browser.');
+        console.log('Geolocation is not supported by this browser.');
       }
-    }
 
-    // Function to clear markers from the map
-    function clearMarkers() {
-      // Implement your code to clear markers from the map
-      // (e.g., store the markers in an array and call setMap(null) on each marker)
+      // Search for restaurants by type
+      var searchInput = document.getElementById('search-bar');
+      var searchButton = document.getElementById('search-button');
+      searchButton.addEventListener('click', function() {
+        var query = searchInput.value;
+        var request = {
+          location: map.getCenter(),
+          radius: '1000',
+          type: ['restaurant'],
+          query: query
+        };
+
+        var service = new google.maps.places.PlacesService(map);
+        service.textSearch(request, function(results, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK) {
+            for (var i = 0; i < results.length; i++) {
+              createMarker(results[i]);
+            }
+          }
+        });
+      });
+
+      // Find user's current location
+      var locationButton = document.getElementById('location-button');
+      locationButton.addEventListener('click', function() {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function(position) {
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            var pos = new google.maps.LatLng(latitude, longitude);
+
+            var marker = new google.maps.Marker({
+              position: pos,
+              map: map
+            });
+
+            map.setCenter(pos);
+          }, function(error) {
+            console.log('Error getting current position:', error);
+          });
+        } else {
+          console.log('Geolocation is not supported by this browser.');
+        }
+      });
     }
   </script>
-  <!-- Replace 'YOUR_API_KEY' with your actual Google Maps API key -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxgFm8A0qnrxYKkvbQHCfF9WWBBS_SyjI&callback=initMap" async defer></script>
-
-  <button onclick="findCurrentLocation()">Find My Location</button>
+</head>
+<body>
+  <h1 id="heading">Restaurant Finder</h1>
+  <div id="search-container">
+    <input type="text" id="search-bar" placeholder="Search for restaurant type (e.g., Italian)">
+    <button id="search-button">Search</button>
+    <button id="location-button">Find My Location</button>
+  </div>
+  <div id="map-container">
+    <div id="map"></div>
+  </div>
+  <script>
+    initMap();
+  </script>
 </body>
 </html>
