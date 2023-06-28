@@ -3,148 +3,106 @@
 <head>
   <title>Restaurant Finder</title>
   <style>
-    html, body {
+    /* setting the styling for the page */
+    body {
       margin: 0;
       padding: 0;
-      height: 100%;
-      background-color: #f2f2f2;
       font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
     }
 
-    #map-container {
-      width: 80%;
-      height: 60%;
-      margin: 20px auto;
+    /* setting the height of the map container */
+    #map {
+      height: 100vh;
     }
 
-    #heading {
+    /* Center the content and provide padding */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
       text-align: center;
-      font-size: 24px;
-      font-weight: bold;
-      color: #555555;
-      margin-top: 30px;
     }
 
-    #search-container {
-      text-align: center;
-      margin-top: 20px;
-    }
-
-    #search-bar {
-      padding: 10px;
-      width: 400px;
-      font-size: 16px;
-    }
-
-    #location-button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      font-size: 16px;
+    /* Styling for the heading */
+    h1 {
+      font-size: 32px;
+      color: #333;
+      margin-bottom: 20px;
     }
   </style>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxgFm8A0qnrxYKkvbQHCfF9WWBBS_SyjI&libraries=places"></script>
+</head>
+<body>
+  <!-- Container to hold the content -->
+  <div class="container">
+    <!-- Heading for the website -->
+    <h1>Restaurant Finder</h1>
+    <!-- Map container -->
+    <div id="map"></div>
+  </div>
+
+  <!-- JavaScript code for map and restaurant search functionality -->
   <script>
+    // Initialize the map and search for restaurants
     function initMap() {
-      var map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: 40.714224, lng: -74.005973 },
-        zoom: 15,
-        disableDefaultUI: true
-      });
-
-      var infoWindow = new google.maps.InfoWindow();
-
-      // Function to create a marker for a restaurant
-      function createMarker(place) {
-        var marker = new google.maps.Marker({
-          map: map,
-          position: place.geometry.location
-        });
-
-        google.maps.event.addListener(marker, 'click', function() {
-          infoWindow.setContent(place.name);
-          infoWindow.open(map, this);
-        });
-      }
-
-      // Check if the browser supports Geolocation
+      // Check if geolocation is supported by the browser
       if (navigator.geolocation) {
+        // Get the user's current position
         navigator.geolocation.getCurrentPosition(function(position) {
-          var latitude = position.coords.latitude;
-          var longitude = position.coords.longitude;
-          var pos = new google.maps.LatLng(latitude, longitude);
+          // Store the user's location in latitude and longitude
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
 
-          var marker = new google.maps.Marker({
-            position: pos,
-            map: map
+          // Create a new map centered at the user's location
+          const map = new google.maps.Map(document.getElementById("map"), {
+            center: userLocation,
+            zoom: 12
           });
 
-          map.setCenter(pos);
-        }, function(error) {
-          console.log('Error getting current position:', error);
+          // Search for nearby restaurants on the map
+          searchRestaurants(map);
         });
       } else {
-        console.log('Geolocation is not supported by this browser.');
+        alert("Geolocation is not supported by this browser.");
       }
 
-      // Search for restaurants by type
-      var searchInput = document.getElementById('search-bar');
-      var searchButton = document.getElementById('search-button');
-      searchButton.addEventListener('click', function() {
-        var query = searchInput.value;
-        var request = {
+      // Search for restaurants using the Places API
+      function searchRestaurants(map) {
+        // Create a PlacesService object
+        const service = new google.maps.places.PlacesService(map);
+
+        // Define the search request
+        const request = {
           location: map.getCenter(),
-          radius: '1000',
-          type: ['restaurant'],
-          query: query
+          radius: 5000, // Adjust the search radius as desired
+          type: "restaurant",
         };
 
-        var service = new google.maps.places.PlacesService(map);
-        service.textSearch(request, function(results, status) {
+        // Send the search request and process the results
+        service.nearbySearch(request, (results, status) => {
           if (status === google.maps.places.PlacesServiceStatus.OK) {
-            for (var i = 0; i < results.length; i++) {
-              createMarker(results[i]);
+            // Create markers for each restaurant found
+            for (let i = 0; i < results.length; i++) {
+              createMarker(results[i], map);
             }
           }
         });
-      });
+      }
 
-      // Find user's current location
-      var locationButton = document.getElementById('location-button');
-      locationButton.addEventListener('click', function() {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(function(position) {
-            var latitude = position.coords.latitude;
-            var longitude = position.coords.longitude;
-            var pos = new google.maps.LatLng(latitude, longitude);
-
-            var marker = new google.maps.Marker({
-              position: pos,
-              map: map
-            });
-
-            map.setCenter(pos);
-          }, function(error) {
-            console.log('Error getting current position:', error);
-          });
-        } else {
-          console.log('Geolocation is not supported by this browser.');
-        }
-      });
+      // Create a marker for each restaurant
+      function createMarker(place, map) {
+        new google.maps.Marker({
+          position: place.geometry.location,
+          map,
+          title: place.name,
+        });
+      }
     }
   </script>
-</head>
-<body>
-  <h1 id="heading">Restaurant Finder</h1>
-  <div id="search-container">
-    <input type="text" id="search-bar" placeholder="Search for restaurant type (e.g., Italian)">
-    <button id="search-button">Search</button>
-    <button id="location-button">Find My Location</button>
-  </div>
-  <div id="map-container">
-    <div id="map"></div>
-  </div>
-  <script>
-    initMap();
-  </script>
+
+  <!-- Load the Google Maps JavaScript API with the Places library -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBxgFm8A0qnrxYKkvbQHCfF9WWBBS_SyjI&libraries=places&callback=initMap"></script>
 </body>
 </html>
